@@ -54,6 +54,7 @@ export function Dashboard() {
     const [newAccount, setNewAccount] = useState({ name: '', categoryId: '', initialAmount: '', yearGoal: '' });
     const [newCategory, setNewCategory] = useState({ name: '' });
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
+    const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -121,6 +122,7 @@ export function Dashboard() {
     };
 
     const handleAddCategory = async () => {
+        setIsCategorySubmitting(true);
         try {
             await api.post('/categories', { name: newCategory.name });
             setIsAddCategoryOpen(false);
@@ -128,6 +130,8 @@ export function Dashboard() {
             fetchData();
         } catch (error) {
             console.error('Failed to add category:', error);
+        } finally {
+            setIsCategorySubmitting(false);
         }
     };
 
@@ -153,7 +157,7 @@ export function Dashboard() {
                                         onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                                     />
                                 </div>
-                                <Button onClick={handleAddCategory}>Save Category</Button>
+                                <Button onClick={handleAddCategory} isLoading={isCategorySubmitting}>Save Category</Button>
                             </div>
                         </DialogContent>
                     </Dialog>

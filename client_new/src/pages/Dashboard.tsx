@@ -11,6 +11,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { GlobalGoalModal } from '@/components/goals/GlobalGoalModal';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,9 +35,14 @@ interface Account {
     categoryId: number;
     category?: { name: string };
     initialAmount: number;
-    yearGoal?: number;
     currentValue?: number; // Calculated from snapshots (mocked for now or fetched)
     snapshots?: MonthlySnapshot[];
+}
+
+interface GlobalGoal {
+    id: number;
+    year: number;
+    targetAmount: number;
 }
 
 interface Category {
@@ -47,11 +53,13 @@ interface Category {
 export function Dashboard() {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [globalGoal, setGlobalGoal] = useState<GlobalGoal | null>(null);
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
     const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+    const [isSetGoalOpen, setIsSetGoalOpen] = useState(false);
 
     // Form states
-    const [newAccount, setNewAccount] = useState({ name: '', categoryId: '', initialAmount: '', yearGoal: '' });
+    const [newAccount, setNewAccount] = useState({ name: '', categoryId: '', initialAmount: '' });
     const [newCategory, setNewCategory] = useState({ name: '' });
     const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
     const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
@@ -62,20 +70,34 @@ export function Dashboard() {
 
     const fetchData = async () => {
         try {
-            const [accountsData, categoriesData, snapshotsData] = await Promise.all([
+            const currentYear = new Date().getFullYear();
+            const [accountsData, categoriesData, snapshotsData, goalData] = await Promise.all([
                 api.get('/accounts'),
                 api.get('/categories'),
-                api.get('/snapshots')
+                api.get('/snapshots'),
+                api.get(`/goals/${currentYear}`).catch(() => null) // Handle 404 if no goal set
             ]);
 
             // Attach snapshots to their respective accounts
-            const accountsWithSnapshots = accountsData.map((account: Account) => ({
-                ...account,
-                snapshots: snapshotsData.filter((s: MonthlySnapshot) => s.accountId === account.id)
-            }));
+            const accountsWithSnapshots = accountsData.map((account: Account) => {
+                // Determine current value from latest snapshot or initial amount
+                const accountSnapshots = snapshotsData.filter((s: MonthlySnapshot) => s.accountId === account.id);
+                const sortedSnapshots = accountSnapshots.sort((a: any, b: any) => new Date(a.month).getTime() - new Date(b.month).getTime());
+                const latestSnapshot = sortedSnapshots[sortedSnapshots.length - 1];
+                const currentValue = latestSnapshot ? latestSnapshot.amountValue : account.initialAmount;
+
+                return {
+                    ...account,
+                    snapshots: accountSnapshots,
+                    currentValue
+                };
+            });
 
             setAccounts(accountsWithSnapshots);
             setCategories(categoriesData);
+            if (goalData) {
+                setGlobalGoal(goalData);
+            }
         } catch (error) {
             console.error('Failed to fetch data:', error);
         }
@@ -108,11 +130,10 @@ export function Dashboard() {
             await api.post('/accounts', {
                 name: newAccount.name,
                 categoryId: parseInt(newAccount.categoryId),
-                initialAmount: parseFloat(newAccount.initialAmount),
-                yearGoal: newAccount.yearGoal ? parseFloat(newAccount.yearGoal) : null
+                initialAmount: parseFloat(newAccount.initialAmount)
             });
             setIsAddAccountOpen(false);
-            setNewAccount({ name: '', categoryId: '', initialAmount: '', yearGoal: '' });
+            setNewAccount({ name: '', categoryId: '', initialAmount: '' });
             fetchData();
         } catch (error) {
             console.error('Failed to add account:', error);
@@ -134,6 +155,24 @@ export function Dashboard() {
             setIsCategorySubmitting(false);
         }
     };
+
+    const handleSetGoal = async (year: number, amount: number) => {
+        // setIsGoalSubmitting(true); // Handled inside modal now
+        try {
+            const response = await api.post('/goals', {
+                year: year,
+                targetAmount: amount
+            });
+            setGlobalGoal(response);
+            // setIsSetGoalOpen(false); // Handled by modal callback
+        } catch (error) {
+            console.error('Failed to set goal:', error);
+            throw error; // Re-throw to let modal handle error state if needed
+        }
+    };
+
+    const totalPortfolioValue = accounts.reduce((sum, account) => sum + (account.currentValue || 0), 0);
+    const globalProgress = globalGoal ? (totalPortfolioValue / globalGoal.targetAmount) * 100 : 0;
 
     return (
         <div className="space-y-6">
@@ -208,15 +247,6 @@ export function Dashboard() {
                                         onChange={(e) => setNewAccount({ ...newAccount, initialAmount: e.target.value })}
                                     />
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="goal">Year Goal (Optional)</Label>
-                                    <Input
-                                        id="goal"
-                                        type="number"
-                                        value={newAccount.yearGoal}
-                                        onChange={(e) => setNewAccount({ ...newAccount, yearGoal: e.target.value })}
-                                    />
-                                </div>
                                 <Button onClick={handleAddAccount} isLoading={isAccountSubmitting}>Save Account</Button>
                             </div>
                         </DialogContent>
@@ -224,12 +254,41 @@ export function Dashboard() {
                 </div>
             </div>
 
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                        Total Portfolio Goal ({new Date().getFullYear()})
+                    </CardTitle>
+                    <Button variant="outline" size="sm" onClick={() => setIsSetGoalOpen(true)}>Set Goal</Button>
+                    <GlobalGoalModal
+                        isOpen={isSetGoalOpen}
+                        onOpenChange={setIsSetGoalOpen}
+                        onSave={handleSetGoal}
+                        initialGoal={globalGoal}
+                    />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">
+                        ${totalPortfolioValue.toLocaleString()}
+                        {globalGoal && <span className="text-sm font-normal text-muted-foreground ml-2">of ${globalGoal.targetAmount.toLocaleString()}</span>}
+                    </div>
+                    {globalGoal && (
+                        <div className="mt-4 space-y-2">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Progress</span>
+                                <span>{Math.round(globalProgress)}%</span>
+                            </div>
+                            <Progress value={globalProgress} className="h-2" />
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {accounts.map((account) => {
                     // Mock progress calculation (since we don't have current value yet, use initial or 0)
                     // In real app, we'd fetch the latest snapshot value
-                    const currentValue = account.initialAmount; // Placeholder
-                    const progress = account.yearGoal ? (currentValue / account.yearGoal) * 100 : 0;
+                    const currentValue = account.currentValue || account.initialAmount;
 
                     // Calculate YTD Return
                     const ytdReturn = calculateYTDReturn(account.snapshots);
@@ -259,16 +318,6 @@ export function Dashboard() {
                                         {ytdReturn === null ? '--' : `${ytdReturn.toFixed(1)}%`}
                                     </span>
                                 </div>
-
-                                {account.yearGoal && (
-                                    <div className="mt-4 space-y-2">
-                                        <div className="flex justify-between text-xs text-muted-foreground">
-                                            <span>Progress</span>
-                                            <span>{Math.round(progress)}% of ${account.yearGoal.toLocaleString()}</span>
-                                        </div>
-                                        <Progress value={progress} className="h-2" />
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     );

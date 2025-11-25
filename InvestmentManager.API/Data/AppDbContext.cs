@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<InvestmentAccount> InvestmentAccounts { get; set; }
     public DbSet<MonthlySnapshot> MonthlySnapshots { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<GlobalGoal> GlobalGoals { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,8 +26,8 @@ public class AppDbContext : DbContext
             .Property(a => a.InitialAmount)
             .HasPrecision(18, 2);
 
-        modelBuilder.Entity<InvestmentAccount>()
-            .Property(a => a.YearGoal)
+        modelBuilder.Entity<GlobalGoal>()
+            .Property(g => g.TargetAmount)
             .HasPrecision(18, 2);
 
         modelBuilder.Entity<MonthlySnapshot>()

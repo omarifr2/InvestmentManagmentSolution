@@ -21,34 +21,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { MonthlyProgressTable } from '@/components/dashboard/MonthlyProgressTable';
 
-interface MonthlySnapshot {
-    id: number;
-    accountId: number;
-    month: string;
-    amountValue: number;
-}
-
-interface Account {
-    id: number;
-    name: string;
-    categoryId: number;
-    category?: { name: string };
-    initialAmount: number;
-    currentValue?: number; // Calculated from snapshots (mocked for now or fetched)
-    snapshots?: MonthlySnapshot[];
-}
-
-interface GlobalGoal {
-    id: number;
-    year: number;
-    targetAmount: number;
-}
-
-interface Category {
-    id: number;
-    name: string;
-}
+import { Account, Category, GlobalGoal, MonthlySnapshot } from '@/types';
 
 export function Dashboard() {
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -283,6 +258,8 @@ export function Dashboard() {
                     )}
                 </CardContent>
             </Card>
+
+            <MonthlyProgressTable accounts={accounts} />
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {accounts.map((account) => {

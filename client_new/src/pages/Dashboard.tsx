@@ -53,6 +53,7 @@ export function Dashboard() {
     // Form states
     const [newAccount, setNewAccount] = useState({ name: '', categoryId: '', initialAmount: '', yearGoal: '' });
     const [newCategory, setNewCategory] = useState({ name: '' });
+    const [isAccountSubmitting, setIsAccountSubmitting] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -101,6 +102,7 @@ export function Dashboard() {
     };
 
     const handleAddAccount = async () => {
+        setIsAccountSubmitting(true);
         try {
             await api.post('/accounts', {
                 name: newAccount.name,
@@ -113,6 +115,8 @@ export function Dashboard() {
             fetchData();
         } catch (error) {
             console.error('Failed to add account:', error);
+        } finally {
+            setIsAccountSubmitting(false);
         }
     };
 
@@ -209,7 +213,7 @@ export function Dashboard() {
                                         onChange={(e) => setNewAccount({ ...newAccount, yearGoal: e.target.value })}
                                     />
                                 </div>
-                                <Button onClick={handleAddAccount}>Save Account</Button>
+                                <Button onClick={handleAddAccount} isLoading={isAccountSubmitting}>Save Account</Button>
                             </div>
                         </DialogContent>
                     </Dialog>

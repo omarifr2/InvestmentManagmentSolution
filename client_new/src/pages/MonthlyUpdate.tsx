@@ -50,6 +50,11 @@ export function MonthlyUpdate() {
     const [transfer, setTransfer] = useState({ fromId: '', toId: '', amount: '' });
     const [withdrawal, setWithdrawal] = useState({ accountId: '', amount: '', note: '' });
 
+    // Loading states
+    const [isSnapshotSubmitting, setIsSnapshotSubmitting] = useState(false);
+    const [isTransferSubmitting, setIsTransferSubmitting] = useState(false);
+    const [isWithdrawalSubmitting, setIsWithdrawalSubmitting] = useState(false);
+
     useEffect(() => {
         fetchAccounts();
     }, []);
@@ -72,6 +77,7 @@ export function MonthlyUpdate() {
     };
 
     const handleSaveSnapshots = async () => {
+        setIsSnapshotSubmitting(true);
         try {
             const payload = snapshots
                 .filter(s => s.amount !== '')
@@ -88,10 +94,13 @@ export function MonthlyUpdate() {
             // Optionally clear or refresh
         } catch (error) {
             console.error('Failed to save snapshots:', error);
+        } finally {
+            setIsSnapshotSubmitting(false);
         }
     };
 
     const handleTransfer = async () => {
+        setIsTransferSubmitting(true);
         try {
             await api.post('/transactions', {
                 type: 2, // Transfer
@@ -106,10 +115,13 @@ export function MonthlyUpdate() {
             alert('Transfer recorded!');
         } catch (error) {
             console.error('Failed to record transfer:', error);
+        } finally {
+            setIsTransferSubmitting(false);
         }
     };
 
     const handleWithdrawal = async () => {
+        setIsWithdrawalSubmitting(true);
         try {
             await api.post('/transactions', {
                 type: 1, // Withdrawal
@@ -123,6 +135,8 @@ export function MonthlyUpdate() {
             alert('Withdrawal recorded!');
         } catch (error) {
             console.error('Failed to record withdrawal:', error);
+        } finally {
+            setIsWithdrawalSubmitting(false);
         }
     };
 
@@ -164,7 +178,7 @@ export function MonthlyUpdate() {
                                     <Label>Amount</Label>
                                     <Input type="number" onChange={(e) => setTransfer({ ...transfer, amount: e.target.value })} />
                                 </div>
-                                <Button onClick={handleTransfer}>Save Transfer</Button>
+                                <Button onClick={handleTransfer} isLoading={isTransferSubmitting}>Save Transfer</Button>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -197,7 +211,7 @@ export function MonthlyUpdate() {
                                     <Label>Note</Label>
                                     <Input onChange={(e) => setWithdrawal({ ...withdrawal, note: e.target.value })} />
                                 </div>
-                                <Button onClick={handleWithdrawal}>Save Withdrawal</Button>
+                                <Button onClick={handleWithdrawal} isLoading={isWithdrawalSubmitting}>Save Withdrawal</Button>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -240,7 +254,7 @@ export function MonthlyUpdate() {
                             </TableBody>
                         </Table>
                         <div className="mt-4 flex justify-end">
-                            <Button onClick={handleSaveSnapshots}>Save All Snapshots</Button>
+                            <Button onClick={handleSaveSnapshots} isLoading={isSnapshotSubmitting}>Save All Snapshots</Button>
                         </div>
                     </CardContent>
                 </Card>

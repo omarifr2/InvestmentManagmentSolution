@@ -37,6 +37,7 @@ interface Account {
 interface SnapshotInput {
     accountId: number;
     amount: string;
+    netContribution: string;
 }
 
 export function MonthlyUpdate() {
@@ -64,15 +65,15 @@ export function MonthlyUpdate() {
             const data = await api.get('/accounts');
             setAccounts(data);
             // Initialize snapshots with empty values or previous values if we fetched them
-            setSnapshots(data.map((a: Account) => ({ accountId: a.id, amount: '' })));
+            setSnapshots(data.map((a: Account) => ({ accountId: a.id, amount: '', netContribution: '' })));
         } catch (error) {
             console.error('Failed to fetch accounts:', error);
         }
     };
 
-    const handleSnapshotChange = (accountId: number, value: string) => {
+    const handleSnapshotChange = (accountId: number, field: 'amount' | 'netContribution', value: string) => {
         setSnapshots(prev =>
-            prev.map(s => s.accountId === accountId ? { ...s, amount: value } : s)
+            prev.map(s => s.accountId === accountId ? { ...s, [field]: value } : s)
         );
     };
 
@@ -84,7 +85,8 @@ export function MonthlyUpdate() {
                 .map(s => ({
                     accountId: s.accountId,
                     month: new Date().toISOString(), // Use current date for now
-                    amountValue: parseFloat(s.amount)
+                    amountValue: parseFloat(s.amount),
+                    netContribution: parseFloat(s.netContribution || '0')
                 }));
 
             if (payload.length === 0) return;
@@ -229,6 +231,7 @@ export function MonthlyUpdate() {
                                 <TableRow>
                                     <TableHead>Account Name</TableHead>
                                     <TableHead>Last Month Amount</TableHead>
+                                    <TableHead>New Capital (+/-)</TableHead>
                                     <TableHead>Current Amount</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -243,10 +246,41 @@ export function MonthlyUpdate() {
                                                 <Input
                                                     type="number"
                                                     placeholder="0.00"
-                                                    value={snapshot?.amount || ''}
-                                                    onChange={(e) => handleSnapshotChange(account.id, e.target.value)}
+                                                    value={snapshot?.netContribution || ''}
+                                                    onChange={(e) => handleSnapshotChange(account.id, 'netContribution', e.target.value)}
                                                     className="w-32"
                                                 />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="space-y-1">
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="0.00"
+                                                        value={snapshot?.amount || ''}
+                                                        onChange={(e) => handleSnapshotChange(account.id, 'amount', e.target.value)}
+                                                        className="w-32"
+                                                    />
+                                                    {snapshot?.amount && (
+                                                        <div className="text-xs">
+                                                            {(() => {
+                                                                const current = parseFloat(snapshot.amount);
+                                                                const lastMonth = account.initialAmount; // TODO: Fetch actual last month value
+                                                                const contribution = parseFloat(snapshot.netContribution || '0');
+
+                                                                if (isNaN(current)) return null;
+
+                                                                const gain = current - (lastMonth + contribution);
+                                                                const isPositive = gain >= 0;
+
+                                                                return (
+                                                                    <span className={isPositive ? "text-green-600" : "text-red-600"}>
+                                                                        Market {isPositive ? "Gain" : "Loss"}: {isPositive ? "+" : ""}${gain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     );

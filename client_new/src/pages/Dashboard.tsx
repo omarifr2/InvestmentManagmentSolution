@@ -94,9 +94,15 @@ export function Dashboard() {
         const initialAmount = currentYearSnapshots[0].amountValue;
         const currentAmount = currentYearSnapshots[currentYearSnapshots.length - 1].amountValue;
 
-        if (initialAmount === 0) return null;
+        // Calculate total invested capital (Initial + Net Contributions)
+        // We sum net contributions from all snapshots *after* the initial one
+        const netContributions = currentYearSnapshots.slice(1).reduce((sum, s) => sum + (s.netContribution || 0), 0);
+        const totalInvested = initialAmount + netContributions;
 
-        return ((currentAmount - initialAmount) / initialAmount) * 100;
+        if (totalInvested === 0) return null;
+
+        const totalGain = currentAmount - totalInvested;
+        return (totalGain / totalInvested) * 100;
     };
 
     const handleAddAccount = async () => {

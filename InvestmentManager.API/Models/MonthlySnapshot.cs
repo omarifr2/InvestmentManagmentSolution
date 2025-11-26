@@ -9,4 +9,5 @@ public class MonthlySnapshot
     public InvestmentAccount? Account { get; set; }
     public DateTime Month { get; set; }
     public decimal AmountValue { get; set; }
+    public decimal NetContribution { get; set; }
 }

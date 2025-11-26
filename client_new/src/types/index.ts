@@ -3,6 +3,7 @@ export interface MonthlySnapshot {
     accountId: number;
     month: string;
     amountValue: number;
+    netContribution: number;
 }
 
 export interface Category {

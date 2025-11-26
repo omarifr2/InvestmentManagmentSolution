@@ -72,12 +72,22 @@ public class Seeder
             // Account A - 2025 Snapshots (Jan-Nov, starting at $50k, +$1k per month)
             for (int month = 1; month <= 11; month++)
             {
-                _context.MonthlySnapshots.Add(new MonthlySnapshot
+                var snapshot = new MonthlySnapshot
                 {
                     AccountId = accountA.Id,
                     Month = new DateTime(2025, month, 1),
                     AmountValue = 50000m + (month - 1) * 1000m
-                });
+                };
+
+                // Add a $1,000 contribution in June 2025
+                if (month == 6)
+                {
+                    snapshot.NetContribution = 1000m;
+                    // Adjust amount value to reflect the contribution + some gain
+                    snapshot.AmountValue += 1000m; 
+                }
+
+                _context.MonthlySnapshots.Add(snapshot);
             }
 
             // Seed Account B: Meme Stocks (The Loss)

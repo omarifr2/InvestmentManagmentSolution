@@ -234,72 +234,74 @@ export function Dashboard() {
                 </div>
             </div>
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                        Total Portfolio Goal ({new Date().getFullYear()})
-                    </CardTitle>
-                    <Button variant="outline" size="sm" onClick={() => setIsSetGoalOpen(true)}>Set Goal</Button>
-                    <GlobalGoalModal
-                        isOpen={isSetGoalOpen}
-                        onOpenChange={setIsSetGoalOpen}
-                        onSave={handleSetGoal}
-                        initialGoal={globalGoal}
-                    />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">
-                        ${totalPortfolioValue.toLocaleString()}
-                        {globalGoal && <span className="text-sm font-normal text-muted-foreground ml-2">of ${globalGoal.targetAmount.toLocaleString()}</span>}
-                    </div>
-                    {globalGoal && (
-                        <div className="mt-4 space-y-2">
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>Progress</span>
-                                <span>{Math.round(globalProgress)}%</span>
-                            </div>
-                            <Progress value={globalProgress} className="h-2" />
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {globalGoal && globalGoal.contributionGoal > 0 && (
+            <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            Contribution Goal ({new Date().getFullYear()})
+                            Total Portfolio Goal ({new Date().getFullYear()})
                         </CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => setIsSetGoalOpen(true)}>Set Goal</Button>
+                        <GlobalGoalModal
+                            isOpen={isSetGoalOpen}
+                            onOpenChange={setIsSetGoalOpen}
+                            onSave={handleSetGoal}
+                            initialGoal={globalGoal}
+                        />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {(() => {
-                                const currentYear = new Date().getFullYear();
-                                const totalContributions = accounts.reduce((sum, account) => {
-                                    const currentYearSnapshots = account.snapshots?.filter(s => new Date(s.month).getFullYear() === currentYear) || [];
-                                    const accountContributions = currentYearSnapshots.reduce((accSum, s) => accSum + (s.netContribution || 0), 0);
-                                    return sum + accountContributions;
-                                }, 0);
-                                const progress = (totalContributions / globalGoal.contributionGoal) * 100;
-
-                                return (
-                                    <>
-                                        ${totalContributions.toLocaleString()}
-                                        <span className="text-sm font-normal text-muted-foreground ml-2">of ${globalGoal.contributionGoal.toLocaleString()}</span>
-                                        <div className="mt-4 space-y-2">
-                                            <div className="flex justify-between text-xs text-muted-foreground">
-                                                <span>Progress</span>
-                                                <span>{Math.round(progress)}%</span>
-                                            </div>
-                                            <Progress value={progress} className="h-2 bg-blue-100" />
-                                        </div>
-                                    </>
-                                );
-                            })()}
+                            ${totalPortfolioValue.toLocaleString()}
+                            {globalGoal && <span className="text-sm font-normal text-muted-foreground ml-2">of ${globalGoal.targetAmount.toLocaleString()}</span>}
                         </div>
+                        {globalGoal && (
+                            <div className="mt-4 space-y-2">
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>Progress</span>
+                                    <span>{Math.round(globalProgress)}%</span>
+                                </div>
+                                <Progress value={globalProgress} className="h-2" />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
-            )}
+
+                {globalGoal && globalGoal.contributionGoal > 0 && (
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Contribution Goal ({new Date().getFullYear()})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                {(() => {
+                                    const currentYear = new Date().getFullYear();
+                                    const totalContributions = accounts.reduce((sum, account) => {
+                                        const currentYearSnapshots = account.snapshots?.filter(s => new Date(s.month).getFullYear() === currentYear) || [];
+                                        const accountContributions = currentYearSnapshots.reduce((accSum, s) => accSum + (s.netContribution || 0), 0);
+                                        return sum + accountContributions;
+                                    }, 0);
+                                    const progress = (totalContributions / globalGoal.contributionGoal) * 100;
+
+                                    return (
+                                        <>
+                                            ${totalContributions.toLocaleString()}
+                                            <span className="text-sm font-normal text-muted-foreground ml-2">of ${globalGoal.contributionGoal.toLocaleString()}</span>
+                                            <div className="mt-4 space-y-2">
+                                                <div className="flex justify-between text-xs text-muted-foreground">
+                                                    <span>Progress</span>
+                                                    <span>{Math.round(progress)}%</span>
+                                                </div>
+                                                <Progress value={progress} className="h-2 bg-blue-100" />
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
 
             <MonthlyProgressTable accounts={accounts} />
 

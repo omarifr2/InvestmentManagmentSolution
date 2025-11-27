@@ -49,7 +49,7 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
     // Process data for the table
     const tableData = useMemo(() => {
         return accounts.map(account => {
-            // Initialize array for 12 months with 0 or null
+            // Initialize array for 12 months with null
             const monthlyData = Array(12).fill(null);
             let hasData = false;
             let totalValue = 0;
@@ -61,17 +61,13 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
 
             accountSnapshots.forEach(snapshot => {
                 const monthIndex = new Date(snapshot.month).getMonth(); // 0-11
-                monthlyData[monthIndex] = snapshot.amountValue;
+                monthlyData[monthIndex] = {
+                    amount: snapshot.amountValue,
+                    contribution: snapshot.netContribution
+                };
                 totalValue += snapshot.amountValue;
                 if (snapshot.amountValue > 0) hasData = true;
             });
-
-            // If no snapshots for the year, check if initial amount should be considered?
-            // The requirement says "excluding accounts with no capital".
-            // If an account has 0 snapshots for the year, it might still have capital from previous years.
-            // However, the prompt implies showing monthly amounts. 
-            // If we don't have monthly snapshots, we can't show monthly amounts.
-            // Let's assume "no capital" means the sum of displayed months is 0.
 
             return {
                 ...account,
@@ -132,10 +128,24 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
                                         <TableCell className="font-medium">
                                             {account.name}
                                         </TableCell>
-                                        {account.monthlyData.map((amount, index) => (
-                                            <TableCell key={index} className="text-right font-mono text-xs px-2">
-                                                {amount !== null ? (
-                                                    `$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                                        {account.monthlyData.map((data, index) => (
+                                            <TableCell key={index} className="text-right font-mono text-xs px-2 align-top">
+                                                {data ? (
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <span>
+                                                            ${data.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                                        </span>
+                                                        {data.contribution !== undefined && data.contribution !== 0 && (
+                                                            <span className={`text-[10px] ${
+                                                                data.contribution > 0 
+                                                                    ? 'text-green-600' 
+                                                                    : 'text-red-600'
+                                                            }`}>
+                                                                ({data.contribution > 0 ? '+' : ''}
+                                                                ${data.contribution.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <span className="text-muted-foreground">-</span>
                                                 )}

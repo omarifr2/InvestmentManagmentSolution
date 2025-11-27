@@ -20,14 +20,15 @@ import {
 interface GlobalGoalModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (year: number, amount: number) => Promise<void>;
-    initialGoal: { year: number, targetAmount: number } | null;
+    onSave: (year: number, amount: number, contributionGoal: number) => Promise<void>;
+    initialGoal: { year: number, targetAmount: number, contributionGoal: number } | null;
 }
 
 export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: GlobalGoalModalProps) {
     const currentYear = new Date().getFullYear();
     const [year, setYear] = useState<string>(currentYear.toString());
     const [amount, setAmount] = useState<string>('');
+    const [contributionGoal, setContributionGoal] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -35,9 +36,11 @@ export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: G
             if (initialGoal) {
                 setYear(initialGoal.year.toString());
                 setAmount(initialGoal.targetAmount.toString());
+                setContributionGoal(initialGoal.contributionGoal?.toString() || '');
             } else {
                 setYear(currentYear.toString());
                 setAmount('');
+                setContributionGoal('');
             }
         }
     }, [isOpen, initialGoal, currentYear]);
@@ -47,7 +50,7 @@ export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: G
 
         setIsLoading(true);
         try {
-            await onSave(parseInt(year), parseFloat(amount));
+            await onSave(parseInt(year), parseFloat(amount), parseFloat(contributionGoal || '0'));
             onOpenChange(false);
         } catch (error) {
             console.error("Failed to save goal", error);
@@ -85,6 +88,18 @@ export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: G
                         />
                         <p className="text-xs text-muted-foreground">
                             Total amount you aim to reach with the sum of all your accounts this year.
+                        </p>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="contribution-goal">Annual Contribution Goal</Label>
+                        <CurrencyInput
+                            id="contribution-goal"
+                            value={contributionGoal}
+                            onChange={(val) => setContributionGoal(val)}
+                            placeholder="e.g. 25000.00"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            The amount of new capital you plan to deposit this year.
                         </p>
                     </div>
                 </div>

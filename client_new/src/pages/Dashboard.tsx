@@ -138,18 +138,17 @@ export function Dashboard() {
         }
     };
 
-    const handleSetGoal = async (year: number, amount: number) => {
-        // setIsGoalSubmitting(true); // Handled inside modal now
+    const handleSetGoal = async (year: number, amount: number, contributionGoal: number) => {
         try {
             const response = await api.post('/goals', {
                 year: year,
-                targetAmount: amount
+                targetAmount: amount,
+                contributionGoal: contributionGoal
             });
             setGlobalGoal(response);
-            // setIsSetGoalOpen(false); // Handled by modal callback
         } catch (error) {
             console.error('Failed to set goal:', error);
-            throw error; // Re-throw to let modal handle error state if needed
+            throw error;
         }
     };
 
@@ -265,15 +264,48 @@ export function Dashboard() {
                 </CardContent>
             </Card>
 
+            {globalGoal && globalGoal.contributionGoal > 0 && (
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                            Contribution Goal ({new Date().getFullYear()})
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {(() => {
+                                const currentYear = new Date().getFullYear();
+                                const totalContributions = accounts.reduce((sum, account) => {
+                                    const currentYearSnapshots = account.snapshots?.filter(s => new Date(s.month).getFullYear() === currentYear) || [];
+                                    const accountContributions = currentYearSnapshots.reduce((accSum, s) => accSum + (s.netContribution || 0), 0);
+                                    return sum + accountContributions;
+                                }, 0);
+                                const progress = (totalContributions / globalGoal.contributionGoal) * 100;
+
+                                return (
+                                    <>
+                                        ${totalContributions.toLocaleString()}
+                                        <span className="text-sm font-normal text-muted-foreground ml-2">of ${globalGoal.contributionGoal.toLocaleString()}</span>
+                                        <div className="mt-4 space-y-2">
+                                            <div className="flex justify-between text-xs text-muted-foreground">
+                                                <span>Progress</span>
+                                                <span>{Math.round(progress)}%</span>
+                                            </div>
+                                            <Progress value={progress} className="h-2 bg-blue-100" />
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             <MonthlyProgressTable accounts={accounts} />
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {accounts.map((account) => {
-                    // Mock progress calculation (since we don't have current value yet, use initial or 0)
-                    // In real app, we'd fetch the latest snapshot value
                     const currentValue = account.currentValue || account.initialAmount;
-
-                    // Calculate YTD Return
                     const ytdReturn = calculateYTDReturn(account.snapshots);
 
                     return (
@@ -286,8 +318,6 @@ export function Dashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">${currentValue.toLocaleString()}</div>
-
-                                {/* YTD Return % */}
                                 <div className="mt-2 flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">YTD Return:</span>
                                     <span

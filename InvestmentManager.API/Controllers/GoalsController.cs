@@ -34,6 +34,7 @@ public class GoalsController : ControllerBase
         if (existingGoal != null)
         {
             existingGoal.TargetAmount = goal.TargetAmount;
+            existingGoal.ContributionGoal = goal.ContributionGoal;
             _context.Entry(existingGoal).State = EntityState.Modified;
             await _context.SaveChangesAsync();
             return Ok(existingGoal);

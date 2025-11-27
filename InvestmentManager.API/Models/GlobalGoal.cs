@@ -7,4 +7,5 @@ public class GlobalGoal
     public int Id { get; set; }
     public int Year { get; set; }
     public decimal TargetAmount { get; set; }
+    public decimal ContributionGoal { get; set; }
 }

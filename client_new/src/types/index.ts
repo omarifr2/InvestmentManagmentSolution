@@ -25,4 +25,5 @@ export interface GlobalGoal {
     id: number;
     year: number;
     targetAmount: number;
+    contributionGoal: number;
 }

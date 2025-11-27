@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { GlobalGoalModal } from '@/components/goals/GlobalGoalModal';
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -221,11 +222,10 @@ export function Dashboard() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="initial">Initial Amount</Label>
-                                    <Input
+                                    <CurrencyInput
                                         id="initial"
-                                        type="number"
                                         value={newAccount.initialAmount}
-                                        onChange={(e) => setNewAccount({ ...newAccount, initialAmount: e.target.value })}
+                                        onChange={(val) => setNewAccount({ ...newAccount, initialAmount: val })}
                                     />
                                 </div>
                                 <Button onClick={handleAddAccount} isLoading={isAccountSubmitting}>Save Account</Button>

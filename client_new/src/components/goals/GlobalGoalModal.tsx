@@ -7,7 +7,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -77,11 +77,10 @@ export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: G
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="target-amount">Target Amount</Label>
-                        <Input
+                        <CurrencyInput
                             id="target-amount"
-                            type="number"
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
+                            onChange={(val) => setAmount(val)}
                             placeholder="e.g. 150000.00"
                         />
                         <p className="text-xs text-muted-foreground">

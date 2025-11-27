@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import {
     Table,
     TableBody,
@@ -212,7 +213,7 @@ export function MonthlyUpdate() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Amount</Label>
-                                    <Input type="number" onChange={(e) => setTransfer({ ...transfer, amount: e.target.value })} />
+                                    <CurrencyInput value={transfer.amount} onChange={(val) => setTransfer({ ...transfer, amount: val })} />
                                 </div>
                                 <Button onClick={handleTransfer} isLoading={isTransferSubmitting}>Save Transfer</Button>
                             </div>
@@ -241,7 +242,7 @@ export function MonthlyUpdate() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Amount</Label>
-                                    <Input type="number" onChange={(e) => setWithdrawal({ ...withdrawal, amount: e.target.value })} />
+                                    <CurrencyInput value={withdrawal.amount} onChange={(val) => setWithdrawal({ ...withdrawal, amount: val })} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Note</Label>
@@ -314,21 +315,19 @@ export function MonthlyUpdate() {
                                             </TableCell>
                                             <TableCell>${account.initialAmount.toLocaleString()}</TableCell> {/* Placeholder for last month */}
                                             <TableCell>
-                                                <Input
-                                                    type="number"
+                                                <CurrencyInput
                                                     placeholder="0.00"
                                                     value={snapshot?.netContribution || ''}
-                                                    onChange={(e) => handleSnapshotChange(account.id, 'netContribution', e.target.value)}
+                                                    onChange={(val) => handleSnapshotChange(account.id, 'netContribution', val)}
                                                     className="w-32"
                                                 />
                                             </TableCell>
                                             <TableCell>
                                                 <div className="space-y-1">
-                                                    <Input
-                                                        type="number"
+                                                    <CurrencyInput
                                                         placeholder="0.00"
                                                         value={snapshot?.amount || ''}
-                                                        onChange={(e) => handleSnapshotChange(account.id, 'amount', e.target.value)}
+                                                        onChange={(val) => handleSnapshotChange(account.id, 'amount', val)}
                                                         className="w-32"
                                                     />
                                                     {snapshot?.amount && (

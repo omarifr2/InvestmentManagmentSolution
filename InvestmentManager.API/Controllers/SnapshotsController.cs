@@ -25,7 +25,26 @@ public class SnapshotsController : ControllerBase
     [HttpPost("batch")]
     public async Task<ActionResult> CreateSnapshots(List<MonthlySnapshot> snapshots)
     {
-        _context.MonthlySnapshots.AddRange(snapshots);
+        foreach (var snapshot in snapshots)
+        {
+            // Check if a snapshot already exists for this account and month
+            var existingSnapshot = await _context.MonthlySnapshots
+                .FirstOrDefaultAsync(s => s.AccountId == snapshot.AccountId && s.Month == snapshot.Month);
+
+            if (existingSnapshot != null)
+            {
+                // Update existing
+                existingSnapshot.AmountValue = snapshot.AmountValue;
+                existingSnapshot.NetContribution = snapshot.NetContribution;
+                _context.Entry(existingSnapshot).State = EntityState.Modified;
+            }
+            else
+            {
+                // Add new
+                _context.MonthlySnapshots.Add(snapshot);
+            }
+        }
+
         await _context.SaveChangesAsync();
         return Ok();
     }

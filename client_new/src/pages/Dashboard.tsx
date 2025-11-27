@@ -23,6 +23,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { MonthlyProgressTable } from '@/components/dashboard/MonthlyProgressTable';
+import { AccountCard } from '@/components/dashboard/AccountCard';
 
 import { Account, Category, GlobalGoal, MonthlySnapshot } from '@/types';
 
@@ -79,32 +80,7 @@ export function Dashboard() {
         }
     };
 
-    // Calculate YTD Return %
-    const calculateYTDReturn = (snapshots?: MonthlySnapshot[]): number | null => {
-        if (!snapshots || snapshots.length === 0) return null;
 
-        const currentYear = new Date().getFullYear();
-
-        // Filter snapshots for current year and sort by date
-        const currentYearSnapshots = snapshots
-            .filter(s => new Date(s.month).getFullYear() === currentYear)
-            .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
-
-        if (currentYearSnapshots.length === 0) return null;
-
-        const initialAmount = currentYearSnapshots[0].amountValue;
-        const currentAmount = currentYearSnapshots[currentYearSnapshots.length - 1].amountValue;
-
-        // Calculate total invested capital (Initial + Net Contributions)
-        // We sum net contributions from all snapshots *after* the initial one
-        const netContributions = currentYearSnapshots.slice(1).reduce((sum, s) => sum + (s.netContribution || 0), 0);
-        const totalInvested = initialAmount + netContributions;
-
-        if (totalInvested === 0) return null;
-
-        const totalGain = currentAmount - totalInvested;
-        return (totalGain / totalInvested) * 100;
-    };
 
     const handleAddAccount = async () => {
         setIsAccountSubmitting(true);
@@ -306,37 +282,9 @@ export function Dashboard() {
             <MonthlyProgressTable accounts={accounts} />
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {accounts.map((account) => {
-                    const currentValue = account.currentValue || account.initialAmount;
-                    const ytdReturn = calculateYTDReturn(account.snapshots);
-
-                    return (
-                        <Card key={account.id}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">
-                                    {account.name}
-                                </CardTitle>
-                                <span className="text-xs text-muted-foreground">{account.category?.name}</span>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">${currentValue.toLocaleString()}</div>
-                                <div className="mt-2 flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">YTD Return:</span>
-                                    <span
-                                        className={`text-sm font-semibold ${ytdReturn === null
-                                            ? 'text-muted-foreground'
-                                            : ytdReturn >= 0
-                                                ? 'text-green-600'
-                                                : 'text-red-600'
-                                            }`}
-                                    >
-                                        {ytdReturn === null ? '--' : `${ytdReturn.toFixed(1)}%`}
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                {accounts.map((account) => (
+                    <AccountCard key={account.id} account={account} />
+                ))}
             </div>
         </div>
     );

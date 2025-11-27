@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { ArrowRightLeft, ArrowDownCircle } from 'lucide-react';
+import { ArrowRightLeft, ArrowDownCircle, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface Account {
     id: number;
@@ -40,10 +40,19 @@ interface SnapshotInput {
     netContribution: string;
 }
 
+interface ServerSnapshot {
+    id: number;
+    accountId: number;
+    month: string;
+    amountValue: number;
+    netContribution: number;
+}
+
 export function MonthlyUpdate() {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [snapshots, setSnapshots] = useState<SnapshotInput[]>([]);
-    const [month] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [serverSnapshots, setServerSnapshots] = useState<ServerSnapshot[]>([]);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
     // Transaction states
     const [isTransferOpen, setIsTransferOpen] = useState(false);
@@ -57,17 +66,38 @@ export function MonthlyUpdate() {
     const [isWithdrawalSubmitting, setIsWithdrawalSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchAccounts();
+        fetchData();
     }, []);
 
-    const fetchAccounts = async () => {
+    // Hydrate form when month or server data changes
+    useEffect(() => {
+        if (accounts.length === 0) return;
+
+        setSnapshots(accounts.map(account => {
+            // Find existing snapshot for this account and month
+            const existing = serverSnapshots.find(s =>
+                s.accountId === account.id &&
+                s.month.startsWith(selectedMonth)
+            );
+
+            return {
+                accountId: account.id,
+                amount: existing ? existing.amountValue.toString() : '',
+                netContribution: existing ? existing.netContribution.toString() : ''
+            };
+        }));
+    }, [selectedMonth, accounts, serverSnapshots]);
+
+    const fetchData = async () => {
         try {
-            const data = await api.get('/accounts');
-            setAccounts(data);
-            // Initialize snapshots with empty values or previous values if we fetched them
-            setSnapshots(data.map((a: Account) => ({ accountId: a.id, amount: '', netContribution: '' })));
+            const [accountsData, snapshotsData] = await Promise.all([
+                api.get('/accounts'),
+                api.get('/snapshots')
+            ]);
+            setAccounts(accountsData);
+            setServerSnapshots(snapshotsData);
         } catch (error) {
-            console.error('Failed to fetch accounts:', error);
+            console.error('Failed to load data:', error);
         }
     };
 
@@ -84,7 +114,7 @@ export function MonthlyUpdate() {
                 .filter(s => s.amount !== '')
                 .map(s => ({
                     accountId: s.accountId,
-                    month: new Date().toISOString(), // Use current date for now
+                    month: `${selectedMonth}-01T00:00:00Z`, // Construct full date
                     amountValue: parseFloat(s.amount),
                     netContribution: parseFloat(s.netContribution || '0')
                 }));
@@ -92,8 +122,12 @@ export function MonthlyUpdate() {
             if (payload.length === 0) return;
 
             await api.post('/snapshots/batch', payload);
+
+            // Refresh data to update "Saved" status
+            const snapshotsData = await api.get('/snapshots');
+            setServerSnapshots(snapshotsData);
+
             alert('Snapshots saved successfully!');
-            // Optionally clear or refresh
         } catch (error) {
             console.error('Failed to save snapshots:', error);
         } finally {
@@ -223,7 +257,19 @@ export function MonthlyUpdate() {
             <div className="grid gap-6 md:grid-cols-1">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Snapshots for {month}</CardTitle>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="month-select">Month:</Label>
+                                <Input
+                                    id="month-select"
+                                    type="month"
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    className="w-auto"
+                                />
+                            </div>
+                            <CardTitle>Snapshots for {selectedMonth}</CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -238,9 +284,34 @@ export function MonthlyUpdate() {
                             <TableBody>
                                 {accounts.map((account) => {
                                     const snapshot = snapshots.find(s => s.accountId === account.id);
+                                    const serverSnapshot = serverSnapshots.find(s =>
+                                        s.accountId === account.id &&
+                                        s.month.startsWith(selectedMonth)
+                                    );
+
+                                    // Check if synced
+                                    const currentAmount = parseFloat(snapshot?.amount || '0');
+                                    const currentContribution = parseFloat(snapshot?.netContribution || '0');
+                                    const serverAmount = serverSnapshot ? serverSnapshot.amountValue : 0;
+                                    const serverContribution = serverSnapshot ? serverSnapshot.netContribution : 0;
+
+                                    // It is saved if values match. 
+                                    // Note: We compare against 0 if no server snapshot exists.
+                                    const isSaved = Math.abs(currentAmount - serverAmount) < 0.01 &&
+                                        Math.abs(currentContribution - serverContribution) < 0.01;
+
                                     return (
                                         <TableRow key={account.id}>
-                                            <TableCell className="font-medium">{account.name}</TableCell>
+                                            <TableCell className="font-medium">
+                                                <div className="flex items-center gap-2">
+                                                    {account.name}
+                                                    {isSaved ? (
+                                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                                    ) : (
+                                                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell>${account.initialAmount.toLocaleString()}</TableCell> {/* Placeholder for last month */}
                                             <TableCell>
                                                 <Input

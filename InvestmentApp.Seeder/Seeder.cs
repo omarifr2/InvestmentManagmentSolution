@@ -194,6 +194,25 @@ public class Seeder
                 return (doubleUp ? prev * 2 : prev / 2, 0);
             });
 
+            // 18. MWR Test Account (Short Term) - Complex Cash Flows
+            Console.WriteLine("Seeding Account 18: MWR Test Account...");
+            await SeedAccount("MWR Test Account", shortTermCategory.Id, 10000m, (m, prev) => {
+                // Month 1-3: Growth +100
+                if (m <= 3) return (prev + 100m, 0);
+                
+                // Month 4: Contribution +5,000
+                if (m == 4) return (prev + 5000m + 100m, 5000m);
+                
+                // Month 5-8: Growth +200
+                if (m <= 8) return (prev + 200m, 0);
+                
+                // Month 9: Withdrawal -2,000
+                if (m == 9) return (prev - 2000m + 100m, -2000m);
+                
+                // Month 10-12: Growth +100
+                return (prev + 100m, 0);
+            });
+
             // Seed Transactions
             Console.WriteLine("Seeding transactions...");
             
@@ -266,6 +285,52 @@ public class Seeder
                 bondJanSnapshot.NetContribution = 2000m;
                 bondJanSnapshot.AmountValue += 2000m; // Adjust balance
             }
+
+            // 5. Additional Withdrawals for Testing Notes
+            
+            // Inheritance Trust: Withdrawal in Feb
+            _context.Transactions.Add(new Transaction
+            {
+                Type = TransactionType.Withdrawal,
+                Amount = 2000m,
+                FromAccountId = accountTrust.Id,
+                Date = new DateTime(2025, 2, 15),
+                Note = "Monthly Living Expenses"
+            });
+
+            // Inheritance Trust: Withdrawals for Mar-Dec
+            for (int month = 3; month <= 12; month++)
+            {
+                _context.Transactions.Add(new Transaction
+                {
+                    Type = TransactionType.Withdrawal,
+                    Amount = 2000m,
+                    FromAccountId = accountTrust.Id,
+                    Date = new DateTime(2025, month, 15),
+                    Note = "Monthly Living Expenses"
+                });
+            }
+
+            // Closed 401k: Withdrawal in June (Liquidation)
+            var accountClosed = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Closed 401k");
+            _context.Transactions.Add(new Transaction
+            {
+                Type = TransactionType.Withdrawal,
+                Amount = 10000m, // Assuming full amount roughly
+                FromAccountId = accountClosed.Id,
+                Date = new DateTime(2025, 6, 1),
+                Note = "Account Closure / Full Liquidation"
+            });
+
+            // Meme Stocks: Panic Sell in May
+            _context.Transactions.Add(new Transaction
+            {
+                Type = TransactionType.Withdrawal,
+                Amount = 1000m,
+                FromAccountId = accountB.Id,
+                Date = new DateTime(2025, 5, 20),
+                Note = "Panic Sell during dip"
+            });
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();

@@ -109,6 +109,7 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
 
                 let movementType: 'transfer-in' | 'transfer-out' | 'contribution' | 'withdrawal' | null = null;
                 let relatedAccountName: string | undefined;
+                let note: string | undefined;
                 const netContribution = snapshot.netContribution;
 
                 if (netContribution !== 0) {
@@ -129,7 +130,11 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
                             const toAccount = accounts.find(a => a.id === transferOutTransaction.toAccountId);
                             relatedAccountName = toAccount?.name;
                         }
-                        else movementType = 'withdrawal';
+                        else {
+                            movementType = 'withdrawal';
+                            const withdrawalTransaction = monthTransactions.find(t => t.type === 1 && t.fromAccountId === account.id);
+                            note = withdrawalTransaction?.note;
+                        }
                     }
                 }
 
@@ -137,7 +142,8 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
                     amount: snapshot.amountValue,
                     contribution: snapshot.netContribution,
                     movementType,
-                    relatedAccountName
+                    relatedAccountName,
+                    note
                 };
                 totalValue += snapshot.amountValue;
                 if (snapshot.amountValue > 0) hasData = true;
@@ -171,12 +177,12 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
         }
     };
 
-    const getMovementLabel = (type: string, relatedAccountName?: string) => {
+    const getMovementLabel = (type: string, relatedAccountName?: string, note?: string) => {
         switch (type) {
             case 'transfer-in': return relatedAccountName ? `Transfer from ${relatedAccountName}` : 'Transfer In';
             case 'transfer-out': return relatedAccountName ? `Transfer to ${relatedAccountName}` : 'Transfer Out';
             case 'contribution': return 'New Contribution';
-            case 'withdrawal': return 'Withdrawal';
+            case 'withdrawal': return note ? `Withdrawal: ${note}` : 'Withdrawal';
             default: return '';
         }
     };
@@ -242,7 +248,7 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
                                                                             {getMovementIcon(data.movementType)}
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
-                                                                            <p>{getMovementLabel(data.movementType, data.relatedAccountName)}</p>
+                                                                            <p>{getMovementLabel(data.movementType, data.relatedAccountName, data.note)}</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 </TooltipProvider>

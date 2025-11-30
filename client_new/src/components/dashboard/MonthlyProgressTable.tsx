@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { api } from '@/services/api';
 import {
     Table,
     TableBody,
@@ -20,6 +21,18 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+    PlusCircle,
+    MinusCircle,
+    ArrowRightCircle,
+    ArrowLeftCircle
+} from 'lucide-react';
 
 import { Account } from '@/types';
 
@@ -27,9 +40,20 @@ interface MonthlyProgressTableProps {
     accounts: Account[];
 }
 
+interface Transaction {
+    id: number;
+    type: number; // 0: Contribution, 1: Withdrawal, 2: Transfer
+    amount: number;
+    fromAccountId?: number;
+    toAccountId?: number;
+    date: string;
+    note: string;
+}
+
 export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
 
     // Extract all available years from snapshots
     const availableYears = useMemo(() => {
@@ -46,6 +70,18 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
         return Array.from(years).sort((a, b) => b - a); // Descending order
     }, [accounts, currentYear]);
 
+    useEffect(() => {
+        const fetchTransactions = async () => {
+            try {
+                const data = await api.get(`/transactions?year=${selectedYear}`) as Transaction[];
+                setTransactions(data);
+            } catch (error) {
+                console.error("Failed to fetch transactions", error);
+            }
+        };
+        fetchTransactions();
+    }, [selectedYear]);
+
     // Process data for the table
     const tableData = useMemo(() => {
         return accounts.map(account => {
@@ -61,9 +97,47 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
 
             accountSnapshots.forEach(snapshot => {
                 const monthIndex = new Date(snapshot.month).getMonth(); // 0-11
+
+                // Determine movement type based on transactions
+                // Find transactions for this account in this month
+                const monthTransactions = transactions.filter(t => {
+                    const tDate = new Date(t.date);
+                    return tDate.getFullYear() === selectedYear &&
+                        tDate.getMonth() === monthIndex &&
+                        (t.fromAccountId === account.id || t.toAccountId === account.id);
+                });
+
+                let movementType: 'transfer-in' | 'transfer-out' | 'contribution' | 'withdrawal' | null = null;
+                let relatedAccountName: string | undefined;
+                const netContribution = snapshot.netContribution;
+
+                if (netContribution !== 0) {
+                    // Check for transfers first
+                    const transferInTransaction = monthTransactions.find(t => t.type === 2 && t.toAccountId === account.id);
+                    const transferOutTransaction = monthTransactions.find(t => t.type === 2 && t.fromAccountId === account.id);
+
+                    if (netContribution > 0) {
+                        if (transferInTransaction) {
+                            movementType = 'transfer-in';
+                            const fromAccount = accounts.find(a => a.id === transferInTransaction.fromAccountId);
+                            relatedAccountName = fromAccount?.name;
+                        }
+                        else movementType = 'contribution';
+                    } else {
+                        if (transferOutTransaction) {
+                            movementType = 'transfer-out';
+                            const toAccount = accounts.find(a => a.id === transferOutTransaction.toAccountId);
+                            relatedAccountName = toAccount?.name;
+                        }
+                        else movementType = 'withdrawal';
+                    }
+                }
+
                 monthlyData[monthIndex] = {
                     amount: snapshot.amountValue,
-                    contribution: snapshot.netContribution
+                    contribution: snapshot.netContribution,
+                    movementType,
+                    relatedAccountName
                 };
                 totalValue += snapshot.amountValue;
                 if (snapshot.amountValue > 0) hasData = true;
@@ -75,12 +149,37 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
                 hasData: hasData || totalValue > 0
             };
         }).filter(account => account.hasData); // Filter out accounts with no capital in the selected year
-    }, [accounts, selectedYear]);
+    }, [accounts, selectedYear, transactions]);
 
     const months = [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     ];
+
+    const getMovementIcon = (type: string) => {
+        switch (type) {
+            case 'transfer-in':
+                return <ArrowRightCircle className="h-3 w-3 text-blue-500" />;
+            case 'transfer-out':
+                return <ArrowLeftCircle className="h-3 w-3 text-orange-500" />;
+            case 'contribution':
+                return <PlusCircle className="h-3 w-3 text-green-500" />;
+            case 'withdrawal':
+                return <MinusCircle className="h-3 w-3 text-red-500" />;
+            default:
+                return null;
+        }
+    };
+
+    const getMovementLabel = (type: string, relatedAccountName?: string) => {
+        switch (type) {
+            case 'transfer-in': return relatedAccountName ? `Transfer from ${relatedAccountName}` : 'Transfer In';
+            case 'transfer-out': return relatedAccountName ? `Transfer to ${relatedAccountName}` : 'Transfer Out';
+            case 'contribution': return 'New Contribution';
+            case 'withdrawal': return 'Withdrawal';
+            default: return '';
+        }
+    };
 
     return (
         <Card>
@@ -136,14 +235,25 @@ export function MonthlyProgressTable({ accounts }: MonthlyProgressTableProps) {
                                                             ${data.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                                         </span>
                                                         {data.contribution !== undefined && data.contribution !== 0 && (
-                                                            <span className={`text-[10px] ${
-                                                                data.contribution > 0 
-                                                                    ? 'text-green-600' 
+                                                            <div className="flex items-center gap-1 justify-end">
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            {getMovementIcon(data.movementType)}
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{getMovementLabel(data.movementType, data.relatedAccountName)}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                                <span className={`text-[10px] ${data.contribution > 0
+                                                                    ? 'text-green-600'
                                                                     : 'text-red-600'
-                                                            }`}>
-                                                                ({data.contribution > 0 ? '+' : ''}
-                                                                ${data.contribution.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
-                                                            </span>
+                                                                    }`}>
+                                                                    ({data.contribution > 0 ? '+' : ''}
+                                                                    ${data.contribution.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                                                                </span>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 ) : (

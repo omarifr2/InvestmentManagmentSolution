@@ -17,12 +17,19 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactions()
+    public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactions([FromQuery] int? year)
     {
-        return await _context.Transactions
+        var query = _context.Transactions
             .Include(t => t.FromAccount)
             .Include(t => t.ToAccount)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (year.HasValue)
+        {
+            query = query.Where(t => t.Date.Year == year.Value);
+        }
+
+        return await query.ToListAsync();
     }
 
     [HttpPost]

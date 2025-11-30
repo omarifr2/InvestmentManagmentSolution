@@ -139,17 +139,63 @@ export function MonthlyUpdate() {
     const handleTransfer = async () => {
         setIsTransferSubmitting(true);
         try {
+            const amount = parseFloat(transfer.amount);
+            const fromId = parseInt(transfer.fromId);
+            const toId = parseInt(transfer.toId);
+
             await api.post('/transactions', {
                 type: 2, // Transfer
-                amount: parseFloat(transfer.amount),
-                fromAccountId: parseInt(transfer.fromId),
-                toAccountId: parseInt(transfer.toId),
+                amount: amount,
+                fromAccountId: fromId,
+                toAccountId: toId,
                 date: new Date().toISOString(),
                 note: 'Transfer'
             });
+
+            // Update snapshots
+            const newSnapshots = snapshots.map(s => {
+                if (s.accountId === fromId) {
+                    const currentAmount = parseFloat(s.amount || '0');
+                    const currentContribution = parseFloat(s.netContribution || '0');
+                    return {
+                        ...s,
+                        amount: (currentAmount - amount).toString(),
+                        netContribution: (currentContribution - amount).toString()
+                    };
+                }
+                if (s.accountId === toId) {
+                    const currentAmount = parseFloat(s.amount || '0');
+                    const currentContribution = parseFloat(s.netContribution || '0');
+                    return {
+                        ...s,
+                        amount: (currentAmount + amount).toString(),
+                        netContribution: (currentContribution + amount).toString()
+                    };
+                }
+                return s;
+            });
+
+            setSnapshots(newSnapshots);
+
+            // Persist changes
+            const payload = newSnapshots
+                .filter(s => s.accountId === fromId || s.accountId === toId)
+                .map(s => ({
+                    accountId: s.accountId,
+                    month: `${selectedMonth}-01T00:00:00Z`,
+                    amountValue: parseFloat(s.amount),
+                    netContribution: parseFloat(s.netContribution || '0')
+                }));
+
+            await api.post('/snapshots/batch', payload);
+
+            // Refresh data
+            const snapshotsData = await api.get('/snapshots');
+            setServerSnapshots(snapshotsData);
+
             setIsTransferOpen(false);
             setTransfer({ fromId: '', toId: '', amount: '' });
-            alert('Transfer recorded!');
+            alert('Transfer recorded and snapshots updated!');
         } catch (error) {
             console.error('Failed to record transfer:', error);
         } finally {
@@ -160,16 +206,52 @@ export function MonthlyUpdate() {
     const handleWithdrawal = async () => {
         setIsWithdrawalSubmitting(true);
         try {
+            const amount = parseFloat(withdrawal.amount);
+            const accountId = parseInt(withdrawal.accountId);
+
             await api.post('/transactions', {
                 type: 1, // Withdrawal
-                amount: parseFloat(withdrawal.amount),
-                fromAccountId: parseInt(withdrawal.accountId), // Using FromAccountId for withdrawal source
+                amount: amount,
+                fromAccountId: accountId, // Using FromAccountId for withdrawal source
                 date: new Date().toISOString(),
                 note: withdrawal.note
             });
+
+            // Update snapshots
+            const newSnapshots = snapshots.map(s => {
+                if (s.accountId === accountId) {
+                    const currentAmount = parseFloat(s.amount || '0');
+                    const currentContribution = parseFloat(s.netContribution || '0');
+                    return {
+                        ...s,
+                        amount: (currentAmount - amount).toString(),
+                        netContribution: (currentContribution - amount).toString()
+                    };
+                }
+                return s;
+            });
+
+            setSnapshots(newSnapshots);
+
+            // Persist changes
+            const payload = newSnapshots
+                .filter(s => s.accountId === accountId)
+                .map(s => ({
+                    accountId: s.accountId,
+                    month: `${selectedMonth}-01T00:00:00Z`,
+                    amountValue: parseFloat(s.amount),
+                    netContribution: parseFloat(s.netContribution || '0')
+                }));
+
+            await api.post('/snapshots/batch', payload);
+
+            // Refresh data
+            const snapshotsData = await api.get('/snapshots');
+            setServerSnapshots(snapshotsData);
+
             setIsWithdrawalOpen(false);
             setWithdrawal({ accountId: '', amount: '', note: '' });
-            alert('Withdrawal recorded!');
+            alert('Withdrawal recorded and snapshot updated!');
         } catch (error) {
             console.error('Failed to record withdrawal:', error);
         } finally {
@@ -278,7 +360,7 @@ export function MonthlyUpdate() {
                                 <TableRow>
                                     <TableHead>Account Name</TableHead>
                                     <TableHead>Last Month Amount</TableHead>
-                                    <TableHead>New Capital (+/-)</TableHead>
+                                    <TableHead>New Capital</TableHead>
                                     <TableHead>Current Amount</TableHead>
                                 </TableRow>
                             </TableHeader>

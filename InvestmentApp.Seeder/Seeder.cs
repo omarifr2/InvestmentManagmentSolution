@@ -197,28 +197,75 @@ public class Seeder
             // Seed Transactions
             Console.WriteLine("Seeding transactions...");
             
+            // Seed Transactions and ensure consistency with snapshots
+            Console.WriteLine("Seeding transactions...");
+            
             var accountA = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Vanguard 401k");
             var accountB = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Meme Stocks");
             var accountC = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Emergency Fund");
 
+            // 1. Transfer In: Emergency Fund -> Vanguard 401k (Already in snapshots?)
+            // Let's make sure the snapshot reflects this.
+            // Vanguard 401k has a contribution in month 6 (June). Let's make that a transfer.
             _context.Transactions.Add(new Transaction
             {
                 Type = TransactionType.Transfer,
                 Amount = 1000m,
                 FromAccountId = accountC.Id,
                 ToAccountId = accountA.Id,
-                Date = new DateTime(2025, 10, 24),
+                Date = new DateTime(2025, 6, 15), // June
                 Note = "Transfer from Emergency Fund to Vanguard 401k"
             });
 
+            // 2. Withdrawal: Meme Stocks
+            // Meme Stocks drops 500m every month. Let's say Nov is a withdrawal.
             _context.Transactions.Add(new Transaction
             {
                 Type = TransactionType.Withdrawal,
-                Amount = 200m,
+                Amount = 500m,
                 FromAccountId = accountB.Id,
                 Date = new DateTime(2025, 11, 23),
                 Note = "Withdrawal from Meme Stocks"
             });
+
+            // 3. External Contribution: Kids Education 529
+            // Has 500m contribution every month. Let's record one for March.
+            var accountKids = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Kids Education 529");
+            _context.Transactions.Add(new Transaction
+            {
+                Type = TransactionType.Contribution,
+                Amount = 500m,
+                ToAccountId = accountKids.Id,
+                Date = new DateTime(2025, 3, 10),
+                Note = "Monthly Contribution"
+            });
+
+            // 4. Transfer Out: Inheritance Trust -> Some other place (simulated as withdrawal for now if no dest, but let's do internal transfer)
+            // Inheritance Trust withdraws 2000m every month. Let's make the Jan one a transfer to Bond Index.
+            var accountTrust = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Inheritance Trust");
+            var accountBond = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Bond Index");
+            
+            _context.Transactions.Add(new Transaction
+            {
+                Type = TransactionType.Transfer,
+                Amount = 2000m,
+                FromAccountId = accountTrust.Id,
+                ToAccountId = accountBond.Id,
+                Date = new DateTime(2025, 1, 15),
+                Note = "Trust Distribution to Bond Index"
+            });
+            
+            // We need to update Bond Index snapshot for Jan to reflect this contribution if we want it to match perfectly,
+            // but the seeder logic for Bond Index is "prev * 1.005".
+            // For the purpose of UI testing, we just need the Transaction record to exist and match the month/account of a snapshot with NetContribution.
+            // Inheritance Trust has -2000 NetContribution every month. So Jan match is good.
+            // Bond Index has 0 NetContribution in seeder logic. Let's force one for Jan.
+            var bondJanSnapshot = await _context.MonthlySnapshots.FirstOrDefaultAsync(s => s.AccountId == accountBond.Id && s.Month.Month == 1);
+            if (bondJanSnapshot != null)
+            {
+                bondJanSnapshot.NetContribution = 2000m;
+                bondJanSnapshot.AmountValue += 2000m; // Adjust balance
+            }
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();

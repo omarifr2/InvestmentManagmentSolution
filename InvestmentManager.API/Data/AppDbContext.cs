@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<MonthlySnapshot> MonthlySnapshots { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<GlobalGoal> GlobalGoals { get; set; }
+    public DbSet<CategoryGoal> CategoryGoals { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,10 @@ public class AppDbContext : DbContext
             .HasPrecision(18, 2);
 
         modelBuilder.Entity<GlobalGoal>()
+            .Property(g => g.ContributionGoal)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<CategoryGoal>()
             .Property(g => g.TargetAmount)
             .HasPrecision(18, 2);
 

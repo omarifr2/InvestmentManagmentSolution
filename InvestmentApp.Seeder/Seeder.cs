@@ -32,11 +32,11 @@ public class Seeder
 
             // Seed Categories
             Console.WriteLine("Seeding categories...");
-            var retirementCategory = new InvestmentCategory { Name = "Retirement" };
-            var shortTermCategory = new InvestmentCategory { Name = "Short Term" };
-            var cryptoCategory = new InvestmentCategory { Name = "Crypto/Risky" };
+            var retirementCategory = new InvestmentCategory { Name = "Personal Retirement Plan" };
+            var liquidityCategory = new InvestmentCategory { Name = "24/7 Liquidity" };
+            var othersCategory = new InvestmentCategory { Name = "Others" };
             
-            _context.InvestmentCategories.AddRange(retirementCategory, shortTermCategory, cryptoCategory);
+            _context.InvestmentCategories.AddRange(retirementCategory, liquidityCategory, othersCategory);
             await _context.SaveChangesAsync();
 
             // Seed Global Goal
@@ -74,9 +74,9 @@ public class Seeder
                 await _context.SaveChangesAsync();
             }
 
-            // --- Existing Accounts ---
+            // --- Existing Accounts (Re-categorized) ---
 
-            // 1. Vanguard 401k
+            // 1. Vanguard 401k (Retirement -> Personal Retirement Plan)
             Console.WriteLine("Seeding Account 1: Vanguard 401k...");
             await SeedAccount("Vanguard 401k", retirementCategory.Id, 50000m, (m, prev) => {
                 decimal contribution = 0;
@@ -85,21 +85,19 @@ public class Seeder
                 return (prev + growth, contribution);
             });
 
-            // 2. Meme Stocks
+            // 2. Meme Stocks (Crypto/Risky -> Others)
             Console.WriteLine("Seeding Account 2: Meme Stocks...");
-            await SeedAccount("Meme Stocks", cryptoCategory.Id, 10000m, (m, prev) => {
+            await SeedAccount("Meme Stocks", othersCategory.Id, 10000m, (m, prev) => {
                 return (prev - 500m, 0);
             });
 
-            // 3. Emergency Fund
+            // 3. Emergency Fund (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 3: Emergency Fund...");
-            // Special case: Only Nov snapshot in original, but I'll make it full year for consistency or stick to original.
-            // Original: Single snapshot Nov 2025.
-            await SeedAccount("Emergency Fund", shortTermCategory.Id, 5000m, (m, prev) => (5000m, 0), 11, 11);
+            await SeedAccount("Emergency Fund", liquidityCategory.Id, 5000m, (m, prev) => (5000m, 0), 11, 11);
 
             // --- New Accounts ---
 
-            // 4. Tech Growth Fund (Retirement) - Volatile
+            // 4. Tech Growth Fund (Retirement -> Personal Retirement Plan)
             Console.WriteLine("Seeding Account 4: Tech Growth Fund...");
             await SeedAccount("Tech Growth Fund", retirementCategory.Id, 20000m, (m, prev) => {
                 double changePct = (_random.NextDouble() * 0.10) - 0.02; // -2% to +8%
@@ -107,38 +105,38 @@ public class Seeder
                 return (prev + change, 0);
             });
 
-            // 5. Dividend Portfolio (Retirement) - Steady + Drip
+            // 5. Dividend Portfolio (Retirement -> Personal Retirement Plan)
             Console.WriteLine("Seeding Account 5: Dividend Portfolio...");
             await SeedAccount("Dividend Portfolio", retirementCategory.Id, 50000m, (m, prev) => {
                 return (prev + 200m, 0); 
             });
 
-            // 6. Bond Index (Short Term) - Slow steady
+            // 6. Bond Index (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 6: Bond Index...");
-            await SeedAccount("Bond Index", shortTermCategory.Id, 10000m, (m, prev) => {
+            await SeedAccount("Bond Index", liquidityCategory.Id, 10000m, (m, prev) => {
                 return (prev * 1.005m, 0);
             });
 
-            // 7. Global Market Fund (Retirement) - Moderate
+            // 7. Global Market Fund (Retirement -> Personal Retirement Plan)
             Console.WriteLine("Seeding Account 7: Global Market Fund...");
             await SeedAccount("Global Market Fund", retirementCategory.Id, 30000m, (m, prev) => {
                 return (prev * 1.02m, 0);
             });
 
-            // 8. REIT Income (Short Term) - Steady
+            // 8. REIT Income (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 8: REIT Income...");
-            await SeedAccount("REIT Income", shortTermCategory.Id, 15000m, (m, prev) => {
+            await SeedAccount("REIT Income", liquidityCategory.Id, 15000m, (m, prev) => {
                 return (prev + 100m, 0);
             });
 
-            // 9. Alt Coin Speculation (Crypto/Risky) - Wild
+            // 9. Alt Coin Speculation (Crypto/Risky -> Others)
             Console.WriteLine("Seeding Account 9: Alt Coin Speculation...");
-            await SeedAccount("Alt Coin Speculation", cryptoCategory.Id, 1000m, (m, prev) => {
+            await SeedAccount("Alt Coin Speculation", othersCategory.Id, 1000m, (m, prev) => {
                 double swing = (_random.NextDouble() * 1.0) - 0.5; // -50% to +50%
                 return (prev * (1 + (decimal)swing), 0);
             });
 
-            // 10. Kids Education 529 (Retirement) - Contribution
+            // 10. Kids Education 529 (Retirement -> Personal Retirement Plan)
             Console.WriteLine("Seeding Account 10: Kids Education 529...");
             await SeedAccount("Kids Education 529", retirementCategory.Id, 5000m, (m, prev) => {
                 decimal contribution = 500m;
@@ -146,57 +144,57 @@ public class Seeder
                 return (prev + contribution + growth, contribution);
             });
 
-            // 11. Health Savings (HSA) (Short Term)
+            // 11. Health Savings (HSA) (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 11: Health Savings (HSA)...");
-            await SeedAccount("Health Savings (HSA)", shortTermCategory.Id, 2000m, (m, prev) => {
+            await SeedAccount("Health Savings (HSA)", liquidityCategory.Id, 2000m, (m, prev) => {
                 return (prev + 100m, 100m);
             });
 
-            // 12. Inheritance Trust (Short Term) - Draining
+            // 12. Inheritance Trust (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 12: Inheritance Trust...");
-            await SeedAccount("Inheritance Trust", shortTermCategory.Id, 200000m, (m, prev) => {
+            await SeedAccount("Inheritance Trust", liquidityCategory.Id, 200000m, (m, prev) => {
                 return (prev - 2000m, -2000m); // Negative contribution (withdrawal)
             });
 
-            // 13. Day Trading (Crypto/Risky) - Erratic
+            // 13. Day Trading (Crypto/Risky -> Others)
             Console.WriteLine("Seeding Account 13: Day Trading...");
-            await SeedAccount("Day Trading", cryptoCategory.Id, 5000m, (m, prev) => {
+            await SeedAccount("Day Trading", othersCategory.Id, 5000m, (m, prev) => {
                 decimal change = _random.Next(-1000, 1000);
                 return (prev + change, 0);
             });
 
-            // 14. Empty Shell (Short Term) - No snapshots
+            // 14. Empty Shell (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 14: Empty Shell...");
-            var emptyAccount = new InvestmentAccount { Name = "Empty Shell", CategoryId = shortTermCategory.Id, InitialAmount = 0 };
+            var emptyAccount = new InvestmentAccount { Name = "Empty Shell", CategoryId = liquidityCategory.Id, InitialAmount = 0 };
             _context.InvestmentAccounts.Add(emptyAccount);
             await _context.SaveChangesAsync();
 
-            // 15. Closed 401k (Retirement) - Goes to 0
+            // 15. Closed 401k (Retirement -> Personal Retirement Plan)
             Console.WriteLine("Seeding Account 15: Closed 401k...");
             await SeedAccount("Closed 401k", retirementCategory.Id, 10000m, (m, prev) => {
                 if (m >= 6) return (0, 0);
                 return (prev, 0);
             });
 
-            // 16. Mid-Year Starter (Short Term) - Starts June
+            // 16. Mid-Year Starter (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 16: Mid-Year Starter...");
-            await SeedAccount("Mid-Year Starter", shortTermCategory.Id, 0m, (m, prev) => {
+            await SeedAccount("Mid-Year Starter", liquidityCategory.Id, 0m, (m, prev) => {
                 if (m == 6) return (10000m, 10000m); // Initial deposit
                 if (m > 6) return (prev + 100m, 0);
                 return (0, 0);
             }, 6, 12);
 
-            // 17. Penny Stock Gamble (Crypto/Risky)
+            // 17. Penny Stock Gamble (Crypto/Risky -> Others)
             Console.WriteLine("Seeding Account 17: Penny Stock Gamble...");
-            await SeedAccount("Penny Stock Gamble", cryptoCategory.Id, 100m, (m, prev) => {
+            await SeedAccount("Penny Stock Gamble", othersCategory.Id, 100m, (m, prev) => {
                 if (prev == 0) return (0, 0);
                 bool doubleUp = _random.Next(0, 2) == 0;
                 return (doubleUp ? prev * 2 : prev / 2, 0);
             });
 
-            // 18. MWR Test Account (Short Term) - Complex Cash Flows
+            // 18. MWR Test Account (Short Term -> 24/7 Liquidity)
             Console.WriteLine("Seeding Account 18: MWR Test Account...");
-            await SeedAccount("MWR Test Account", shortTermCategory.Id, 10000m, (m, prev) => {
+            await SeedAccount("MWR Test Account", liquidityCategory.Id, 10000m, (m, prev) => {
                 // Month 1-3: Growth +100
                 if (m <= 3) return (prev + 100m, 0);
                 
@@ -213,19 +211,22 @@ public class Seeder
                 return (prev + 100m, 0);
             });
 
+            // 19. [NEW] Roth IRA (Personal Retirement Plan)
+            Console.WriteLine("Seeding Account 19: Roth IRA...");
+            await SeedAccount("Roth IRA", retirementCategory.Id, 12000m, (m, prev) => {
+                // Steady growth + monthly contribution
+                decimal contribution = 500m;
+                return (prev + contribution + (prev * 0.005m), contribution);
+            });
+
             // Seed Transactions
-            Console.WriteLine("Seeding transactions...");
-            
-            // Seed Transactions and ensure consistency with snapshots
             Console.WriteLine("Seeding transactions...");
             
             var accountA = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Vanguard 401k");
             var accountB = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Meme Stocks");
             var accountC = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Emergency Fund");
 
-            // 1. Transfer In: Emergency Fund -> Vanguard 401k (Already in snapshots?)
-            // Let's make sure the snapshot reflects this.
-            // Vanguard 401k has a contribution in month 6 (June). Let's make that a transfer.
+            // 1. Transfer In: Emergency Fund -> Vanguard 401k
             _context.Transactions.Add(new Transaction
             {
                 Type = TransactionType.Transfer,
@@ -237,7 +238,6 @@ public class Seeder
             });
 
             // 2. Withdrawal: Meme Stocks
-            // Meme Stocks drops 500m every month. Let's say Nov is a withdrawal.
             _context.Transactions.Add(new Transaction
             {
                 Type = TransactionType.Withdrawal,
@@ -248,7 +248,6 @@ public class Seeder
             });
 
             // 3. External Contribution: Kids Education 529
-            // Has 500m contribution every month. Let's record one for March.
             var accountKids = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Kids Education 529");
             _context.Transactions.Add(new Transaction
             {
@@ -259,8 +258,7 @@ public class Seeder
                 Note = "Monthly Contribution"
             });
 
-            // 4. Transfer Out: Inheritance Trust -> Some other place (simulated as withdrawal for now if no dest, but let's do internal transfer)
-            // Inheritance Trust withdraws 2000m every month. Let's make the Jan one a transfer to Bond Index.
+            // 4. Transfer Out: Inheritance Trust -> Bond Index
             var accountTrust = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Inheritance Trust");
             var accountBond = await _context.InvestmentAccounts.FirstAsync(a => a.Name == "Bond Index");
             
@@ -274,11 +272,7 @@ public class Seeder
                 Note = "Trust Distribution to Bond Index"
             });
             
-            // We need to update Bond Index snapshot for Jan to reflect this contribution if we want it to match perfectly,
-            // but the seeder logic for Bond Index is "prev * 1.005".
-            // For the purpose of UI testing, we just need the Transaction record to exist and match the month/account of a snapshot with NetContribution.
-            // Inheritance Trust has -2000 NetContribution every month. So Jan match is good.
-            // Bond Index has 0 NetContribution in seeder logic. Let's force one for Jan.
+            // Adjust Bond Index snapshot for Jan
             var bondJanSnapshot = await _context.MonthlySnapshots.FirstOrDefaultAsync(s => s.AccountId == accountBond.Id && s.Month.Month == 1);
             if (bondJanSnapshot != null)
             {
@@ -316,7 +310,7 @@ public class Seeder
             _context.Transactions.Add(new Transaction
             {
                 Type = TransactionType.Withdrawal,
-                Amount = 10000m, // Assuming full amount roughly
+                Amount = 10000m, 
                 FromAccountId = accountClosed.Id,
                 Date = new DateTime(2025, 6, 1),
                 Note = "Account Closure / Full Liquidation"

@@ -25,12 +25,12 @@ import {
 import { MonthlyProgressTable } from '@/components/dashboard/MonthlyProgressTable';
 import { AccountCard } from '@/components/dashboard/AccountCard';
 
-import { Account, Category, GlobalGoal, MonthlySnapshot } from '@/types';
+import { Account, Category, GoalDto, CategoryGoal, MonthlySnapshot } from '@/types';
 
 export function Dashboard() {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    const [globalGoal, setGlobalGoal] = useState<GlobalGoal | null>(null);
+    const [globalGoal, setGlobalGoal] = useState<GoalDto | null>(null);
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
     const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
     const [isSetGoalOpen, setIsSetGoalOpen] = useState(false);
@@ -114,12 +114,12 @@ export function Dashboard() {
         }
     };
 
-    const handleSetGoal = async (year: number, amount: number, contributionGoal: number) => {
+    const handleSetGoal = async (year: number, contributionGoal: number, categoryGoals: CategoryGoal[]) => {
         try {
             const response = await api.post('/goals', {
-                year: year,
-                targetAmount: amount,
-                contributionGoal: contributionGoal
+                year,
+                contributionGoal,
+                categoryGoals
             });
             setGlobalGoal(response);
         } catch (error) {
@@ -128,8 +128,7 @@ export function Dashboard() {
         }
     };
 
-    const totalPortfolioValue = accounts.reduce((sum, account) => sum + (account.currentValue || 0), 0);
-    const globalProgress = globalGoal ? (totalPortfolioValue / globalGoal.targetAmount) * 100 : 0;
+
 
     return (
         <div className="space-y-6">
@@ -140,6 +139,14 @@ export function Dashboard() {
                         <DialogTrigger asChild>
                             <Button variant="outline">Add Category</Button>
                         </DialogTrigger>
+                        <Button variant="outline" onClick={() => setIsSetGoalOpen(true)}>Set Goals</Button>
+                        <GlobalGoalModal
+                            isOpen={isSetGoalOpen}
+                            onOpenChange={setIsSetGoalOpen}
+                            onSave={handleSetGoal}
+                            initialGoal={globalGoal}
+                            categories={categories}
+                        />
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Add New Category</DialogTitle>
@@ -210,37 +217,41 @@ export function Dashboard() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Total Portfolio Goal ({new Date().getFullYear()})
-                        </CardTitle>
-                        <Button variant="outline" size="sm" onClick={() => setIsSetGoalOpen(true)}>Set Goal</Button>
-                        <GlobalGoalModal
-                            isOpen={isSetGoalOpen}
-                            onOpenChange={setIsSetGoalOpen}
-                            onSave={handleSetGoal}
-                            initialGoal={globalGoal}
-                        />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            ${totalPortfolioValue.toLocaleString()}
-                            {globalGoal && <span className="text-sm font-normal text-muted-foreground ml-2">of ${globalGoal.targetAmount.toLocaleString()}</span>}
-                        </div>
-                        {globalGoal && (
-                            <div className="mt-4 space-y-2">
-                                <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>Progress</span>
-                                    <span>{Math.round(globalProgress)}%</span>
-                                </div>
-                                <Progress value={globalProgress} className="h-2" />
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Category Goal Cards */}
+                {categories.map(category => {
+                    const categoryGoal = globalGoal?.categoryGoals.find(g => g.categoryId === category.id);
+                    if (!categoryGoal) return null;
 
+                    const categoryAccounts = accounts.filter(a => a.categoryId === category.id);
+                    const currentCategoryValue = categoryAccounts.reduce((sum, a) => sum + (a.currentValue || 0), 0);
+                    const progress = (currentCategoryValue / categoryGoal.targetAmount) * 100;
+
+                    return (
+                        <Card key={category.id}>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">
+                                    {category.name} Goal
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">
+                                    ${currentCategoryValue.toLocaleString()}
+                                    <span className="text-sm font-normal text-muted-foreground ml-2">of ${categoryGoal.targetAmount.toLocaleString()}</span>
+                                </div>
+                                <div className="mt-4 space-y-2">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
+                                        <span>Progress</span>
+                                        <span>{Math.round(progress)}%</span>
+                                    </div>
+                                    <Progress value={progress} className="h-2" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+
+                {/* Contribution Goal Card */}
                 {globalGoal && globalGoal.contributionGoal > 0 && (
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

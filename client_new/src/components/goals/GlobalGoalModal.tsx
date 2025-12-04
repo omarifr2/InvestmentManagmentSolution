@@ -16,41 +16,59 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Category, GoalDto, CategoryGoal } from '@/types';
 
 interface GlobalGoalModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (year: number, amount: number, contributionGoal: number) => Promise<void>;
-    initialGoal: { year: number, targetAmount: number, contributionGoal: number } | null;
+    onSave: (year: number, contributionGoal: number, categoryGoals: CategoryGoal[]) => Promise<void>;
+    initialGoal: GoalDto | null;
+    categories: Category[];
 }
 
-export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: GlobalGoalModalProps) {
+export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal, categories }: GlobalGoalModalProps) {
     const currentYear = new Date().getFullYear();
     const [year, setYear] = useState<string>(currentYear.toString());
-    const [amount, setAmount] = useState<string>('');
     const [contributionGoal, setContributionGoal] = useState<string>('');
+    const [categoryGoals, setCategoryGoals] = useState<Record<number, string>>({});
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             if (initialGoal) {
                 setYear(initialGoal.year.toString());
-                setAmount(initialGoal.targetAmount.toString());
                 setContributionGoal(initialGoal.contributionGoal?.toString() || '');
+                const goalsMap: Record<number, string> = {};
+                initialGoal.categoryGoals.forEach(g => {
+                    goalsMap[g.categoryId] = g.targetAmount.toString();
+                });
+                setCategoryGoals(goalsMap);
             } else {
                 setYear(currentYear.toString());
-                setAmount('');
                 setContributionGoal('');
+                setCategoryGoals({});
             }
         }
     }, [isOpen, initialGoal, currentYear]);
 
-    const handleSave = async () => {
-        if (!amount) return;
+    const handleCategoryGoalChange = (categoryId: number, value: string) => {
+        setCategoryGoals(prev => ({
+            ...prev,
+            [categoryId]: value
+        }));
+    };
 
+    const handleSave = async () => {
         setIsLoading(true);
         try {
-            await onSave(parseInt(year), parseFloat(amount), parseFloat(contributionGoal || '0'));
+            const goalsToSave: CategoryGoal[] = Object.entries(categoryGoals)
+                .filter(([_, value]) => value && parseFloat(value) > 0)
+                .map(([categoryId, value]) => ({
+                    categoryId: parseInt(categoryId),
+                    targetAmount: parseFloat(value)
+                }));
+
+            await onSave(parseInt(year), parseFloat(contributionGoal || '0'), goalsToSave);
             onOpenChange(false);
         } catch (error) {
             console.error("Failed to save goal", error);
@@ -61,11 +79,11 @@ export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: G
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Set Your Financial Goal for {year}</DialogTitle>
+                    <DialogTitle>Set Financial Goals for {year}</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-6 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="goal-year">Goal Year</Label>
                         <Select value={year} onValueChange={setYear}>
@@ -78,20 +96,9 @@ export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: G
                             </SelectContent>
                         </Select>
                     </div>
+
                     <div className="grid gap-2">
-                        <Label htmlFor="target-amount">Target Amount</Label>
-                        <CurrencyInput
-                            id="target-amount"
-                            value={amount}
-                            onChange={(val) => setAmount(val)}
-                            placeholder="e.g. 150000.00"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Total amount you aim to reach with the sum of all your accounts this year.
-                        </p>
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="contribution-goal">Annual Contribution Goal</Label>
+                        <Label htmlFor="contribution-goal" className="font-bold">Annual Contribution Goal</Label>
                         <CurrencyInput
                             id="contribution-goal"
                             value={contributionGoal}
@@ -102,10 +109,28 @@ export function GlobalGoalModal({ isOpen, onOpenChange, onSave, initialGoal }: G
                             The amount of new capital you plan to deposit this year.
                         </p>
                     </div>
+
+                    <div className="space-y-4">
+                        <Label className="font-bold">Category Goals</Label>
+                        <p className="text-xs text-muted-foreground -mt-2">
+                            Set target amounts for each category. Leave empty if no goal.
+                        </p>
+                        {categories.map(category => (
+                            <div key={category.id} className="grid gap-2">
+                                <Label htmlFor={`category-${category.id}`}>{category.name}</Label>
+                                <CurrencyInput
+                                    id={`category-${category.id}`}
+                                    value={categoryGoals[category.id] || ''}
+                                    onChange={(val) => handleCategoryGoalChange(category.id, val)}
+                                    placeholder="Target Amount"
+                                />
+                            </div>
+                        ))}
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} isLoading={isLoading}>Save Goal</Button>
+                    <Button onClick={handleSave} isLoading={isLoading}>Save Goals</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

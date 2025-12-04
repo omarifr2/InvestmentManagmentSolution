@@ -21,9 +21,14 @@ export interface Account {
     snapshots?: MonthlySnapshot[];
 }
 
-export interface GlobalGoal {
-    id: number;
-    year: number;
+export interface CategoryGoal {
+    categoryId: number;
     targetAmount: number;
-    contributionGoal: number;
 }
+
+export interface GoalDto {
+    year: number;
+    contributionGoal: number;
+    categoryGoals: CategoryGoal[];
+}
+

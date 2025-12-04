@@ -10,6 +10,7 @@ interface NetWorthPoint {
 
 export function Analytics() {
     const [netWorthData, setNetWorthData] = useState<NetWorthPoint[]>([]);
+    const [categoryData, setCategoryData] = useState<any[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -17,13 +18,18 @@ export function Analytics() {
 
     const fetchData = async () => {
         try {
-            const data = await api.get('/analytics/networth');
+            const [netWorthRes, categoryRes] = await Promise.all([
+                api.get('/analytics/networth'),
+                api.get('/analytics/categories')
+            ]);
+
             // Format date for display
-            const formattedData = data.map((d: any) => ({
+            const formattedNetWorth = netWorthRes.map((d: any) => ({
                 ...d,
                 month: new Date(d.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
             }));
-            setNetWorthData(formattedData);
+            setNetWorthData(formattedNetWorth);
+            setCategoryData(categoryRes);
         } catch (error) {
             console.error('Failed to fetch analytics:', error);
         }
@@ -55,17 +61,17 @@ export function Analytics() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Earnings by Month (Mock)</CardTitle>
+                        <CardTitle>Asset Allocation by Category</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={netWorthData}>
+                                <BarChart data={categoryData}>
                                     <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="month" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Bar dataKey="totalValue" fill="#16a34a" />
+                                    <XAxis dataKey="category" />
+                                    <YAxis tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)} />
+                                    <Tooltip formatter={(value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)} />
+                                    <Bar dataKey="totalValue" fill="#8884d8" />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>

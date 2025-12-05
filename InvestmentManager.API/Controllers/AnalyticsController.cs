@@ -23,18 +23,101 @@ public class AnalyticsController : ControllerBase
             .Select(g => new
             {
                 Month = g.Key,
-                TotalValue = g.Sum(s => s.AmountValue)
+                TotalValue = g.Sum(s => s.AmountValue),
+                MonthlyContribution = g.Sum(s => s.NetContribution)
             })
             .OrderBy(x => x.Month)
             .ToListAsync();
 
-        return Ok(snapshots);
+        decimal runningInvested = 0;
+        var result = snapshots.Select(s => {
+            runningInvested += s.MonthlyContribution;
+            return new {
+                s.Month,
+                s.TotalValue,
+                TotalInvested = runningInvested
+            };
+        });
+
+        return Ok(result);
+    }
+
+    [HttpGet("performance/monthly")]
+    public async Task<ActionResult<IEnumerable<object>>> GetMonthlyPerformance()
+    {
+        var snapshots = await _context.MonthlySnapshots
+            .GroupBy(s => s.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                TotalValue = g.Sum(s => s.AmountValue),
+                NetContribution = g.Sum(s => s.NetContribution)
+            })
+            .OrderBy(x => x.Month)
+            .ToListAsync();
+
+        var result = new List<object>();
+        decimal previousTotalValue = 0;
+
+        foreach (var s in snapshots)
+        {
+            var marketReturn = s.TotalValue - previousTotalValue - s.NetContribution;
+            
+            result.Add(new {
+                s.Month,
+                s.NetContribution,
+                MarketReturn = marketReturn
+            });
+
+            previousTotalValue = s.TotalValue;
+        }
+
+        return Ok(result);
+    }
+
+    [HttpGet("performance/categories")]
+    public async Task<ActionResult<IEnumerable<object>>> GetCategoryPerformance()
+    {
+        var categoryStats = await _context.InvestmentAccounts
+            .Include(a => a.Category)
+            .Select(a => new 
+            {
+                CategoryName = a.Category.Name,
+                CurrentValue = _context.MonthlySnapshots
+                    .Where(s => s.AccountId == a.Id)
+                    .OrderByDescending(s => s.Month)
+                    .Select(s => s.AmountValue)
+                    .FirstOrDefault(),
+                TotalInvested = _context.MonthlySnapshots
+                    .Where(s => s.AccountId == a.Id)
+                    .Sum(s => s.NetContribution)
+            })
+            .ToListAsync();
+
+        var result = categoryStats
+            .GroupBy(x => x.CategoryName)
+            .Select(g => {
+                var totalValue = g.Sum(x => x.CurrentValue);
+                var totalInvested = g.Sum(x => x.TotalInvested);
+                var totalGain = totalValue - totalInvested;
+                var returnPercentage = totalInvested != 0 ? (totalGain / totalInvested) * 100 : 0;
+                
+                return new 
+                {
+                    Category = g.Key,
+                    TotalValue = totalValue,
+                    TotalInvested = totalInvested,
+                    ReturnPercentage = Math.Round(returnPercentage, 2)
+                };
+            })
+            .ToList();
+
+        return Ok(result);
     }
 
     [HttpGet("categories")]
     public async Task<ActionResult<IEnumerable<object>>> GetCategoriesAnalytics()
     {
-        // Get the latest snapshot for each account
         var latestSnapshots = await _context.MonthlySnapshots
             .GroupBy(s => s.AccountId)
             .Select(g => g.OrderByDescending(s => s.Month).FirstOrDefault())
@@ -45,16 +128,11 @@ public class AnalyticsController : ControllerBase
              return Ok(new List<object>());
         }
 
-        // We need to fetch accounts to get the category
-        // Since we have the snapshots in memory now (ToListAsync), we can't easily join in memory if we didn't Include.
-        // Better approach: Query accounts and their latest snapshot.
-        
         var categoryData = await _context.InvestmentAccounts
             .Include(a => a.Category)
             .Select(a => new 
             {
                 CategoryName = a.Category.Name,
-                // Get the latest snapshot value for this account
                 CurrentValue = _context.MonthlySnapshots
                     .Where(s => s.AccountId == a.Id)
                     .OrderByDescending(s => s.Month)
